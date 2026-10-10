@@ -1,0 +1,6 @@
+{
+  "name": "PitchBattle - 1v1 Retro Karaoke Game",
+  "description": "Real-time microphone pitch-scoring 1v1 karaoke battle game featuring pitch detection, scrolling piano-roll, octave folding, and ghost contour replay.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
