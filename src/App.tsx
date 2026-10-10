@@ -221,7 +221,8 @@ export default function App() {
 
   // Start Player 1 turn
   const handleStartGame = async () => {
-    // If mic not yet connected, attempt once (or proceed anyway with simulator)
+    // Explicitly wake up AudioContext on user click
+    await globalAudioEngine.initContext();
     if (!micConnected) {
       await handleConnectMic();
     }
@@ -233,6 +234,7 @@ export default function App() {
 
   // Start Player 2 turn
   const handleStartPlayer2 = async () => {
+    await globalAudioEngine.initContext();
     setStage('P2_SINGING');
     await globalAudioEngine.startSong();
   };
