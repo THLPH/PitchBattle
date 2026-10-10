@@ -29,7 +29,7 @@ export class AudioEngine {
   public backingVolume: number = 0.6;
   public guideVolume: number = 0.35;
   public sfxVolume: number = 0.5;
-  public rmsThreshold: number = 0.012;
+  public rmsThreshold: number = 0.003;
 
   /**
    * Initialize or resume the AudioContext
@@ -81,8 +81,8 @@ export class AudioEngine {
       if (!this.micStream) {
         this.micStream = await navigator.mediaDevices.getUserMedia({
           audio: {
-            echoCancellation: false,
-            autoGainControl: false,
+            echoCancellation: true,
+            autoGainControl: true,
             noiseSuppression: false,
           },
         });
