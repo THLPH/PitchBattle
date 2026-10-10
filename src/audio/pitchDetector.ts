@@ -119,19 +119,22 @@ export class PitchDetector {
       };
     }
 
-    // 2. YIN difference function
+    // 2. Fast YIN difference function (stepped for real-time 60fps performance)
     const minPeriod = Math.max(2, Math.floor(this.sampleRate / this.maxFreq));
     const maxPeriod = Math.min(Math.floor(bufferSize / 2), Math.floor(this.sampleRate / this.minFreq));
     const yinBuffer = new Float32Array(maxPeriod);
 
+    // Step by 2 to prevent main thread freezing
+    const step = 2; 
+    const windowSize = bufferSize - maxPeriod;
+
     for (let tau = 0; tau < maxPeriod; tau++) {
       let diff = 0;
-      const windowSize = bufferSize - maxPeriod;
-      for (let i = 0; i < windowSize; i++) {
+      for (let i = 0; i < windowSize; i += step) {
         const delta = buffer[i] - buffer[i + tau];
         diff += delta * delta;
       }
-      yinBuffer[tau] = diff;
+      yinBuffer[tau] = diff * step;
     }
 
     // 3. Cumulative mean normalized difference
