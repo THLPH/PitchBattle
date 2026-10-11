@@ -63,6 +63,29 @@ export default function App() {
     return success;
   }, []);
 
+  // Check if mic permission was already granted previously
+  useEffect(() => {
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions
+        .query({ name: 'microphone' as PermissionName })
+        .then((permissionStatus) => {
+          if (permissionStatus.state === 'granted') {
+            handleConnectMic();
+          }
+          permissionStatus.onchange = () => {
+            if (permissionStatus.state === 'granted') {
+              handleConnectMic();
+            } else if (permissionStatus.state === 'denied') {
+              setMicConnected(false);
+            }
+          };
+        })
+        .catch(() => {
+          // Permissions API query for microphone not supported on some browsers, ignore
+        });
+    }
+  }, [handleConnectMic]);
+
   // Keyboard pitch simulator mapping for testing without mic
   useEffect(() => {
     const keyToMidiMap: Record<string, number> = {
@@ -227,8 +250,12 @@ export default function App() {
   const handleStartGame = async () => {
     // Explicitly wake up AudioContext on user click
     await globalAudioEngine.initContext();
-    if (!micConnected) {
-      await handleConnectMic();
+    if (!micConnected && !autoSing) {
+      const success = await handleConnectMic();
+      if (!success) {
+        alert("Microfono non rilevato o permesso negato.\n\nFai clic su 'Consenti' quando il browser richiede l'accesso al microfono per cantare in Pitch Battle.");
+        return;
+      }
     }
     setP1Stats({ ...INITIAL_PLAYER_STATS });
     setP2Stats({ ...INITIAL_PLAYER_STATS });
@@ -313,6 +340,8 @@ export default function App() {
             countInSec={countInRemaining}
             handleScoreFrame={handleScoreFrame}
             song={currentSong}
+            micConnected={micConnected}
+            onConnectMic={handleConnectMic}
             onQuit={() => {
               globalAudioEngine.stopSong();
               setStage('START');

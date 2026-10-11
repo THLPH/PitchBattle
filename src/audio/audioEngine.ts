@@ -31,7 +31,7 @@ export class AudioEngine {
   public backingVolume: number = 0.6;
   public guideVolume: number = 0.35;
   public sfxVolume: number = 0.5;
-  public rmsThreshold: number = 0.01; // Increased to ignore background noise
+  public rmsThreshold: number = 0.003; // Sensitive pickup for normal singing voice
 
   private lastMidiValues: number[] = []; // For median filtering
 
@@ -90,29 +90,71 @@ export class AudioEngine {
     try {
       await this.initContext();
 
-      if (!this.micStream) {
-        this.micStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            autoGainControl: true,
-            noiseSuppression: false,
-          },
-        });
+      // Check if existing mic stream has active, live tracks
+      const hasActiveTracks = !!(
+        this.micStream &&
+        this.micStream.getAudioTracks().some((t) => t.readyState === 'live' && t.enabled)
+      );
+
+      if (!hasActiveTracks) {
+        // Clean up any stale or ended tracks
+        if (this.micStream) {
+          try {
+            this.micStream.getTracks().forEach((t) => t.stop());
+          } catch {
+            // ignore
+          }
+          this.micStream = null;
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          console.error('navigator.mediaDevices.getUserMedia is not available');
+          return false;
+        }
+
+        let stream: MediaStream;
+        try {
+          // Optimized for vocal music: avoid browser WebRTC speech compression/cancellation
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: false,
+              autoGainControl: false,
+              noiseSuppression: false,
+            },
+          });
+        } catch (constraintErr) {
+          console.warn('Custom audio constraints rejected, falling back to simple audio: true', constraintErr);
+          // Standard fallback supported by all browsers and webviews
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+
+        this.micStream = stream;
 
         if (this.ctx && this.analyser) {
           if (this.micSource) {
-            this.micSource.disconnect();
+            try {
+              this.micSource.disconnect();
+            } catch {
+              // ignore
+            }
           }
           this.micSource = this.ctx.createMediaStreamSource(this.micStream);
-          // High-pass filter at 80Hz to eliminate fan noise, table rumble and 50/60Hz electrical hum
+          
+          // High-pass filter at 65Hz (C2) to remove sub-audible rumble while keeping male fundamentals
           const highpass = this.ctx.createBiquadFilter();
           highpass.type = 'highpass';
-          highpass.frequency.setValueAtTime(80, this.ctx.currentTime);
+          highpass.frequency.setValueAtTime(65, this.ctx.currentTime);
           this.micSource.connect(highpass);
           // Connect to analyser ONLY, NOT to destination to prevent feedback!
           highpass.connect(this.analyser);
         }
       }
+
+      // Resume context if suspended
+      if (this.ctx && this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+      }
+
       return true;
     } catch (err) {
       console.warn('Microphone permission or hardware error:', err);

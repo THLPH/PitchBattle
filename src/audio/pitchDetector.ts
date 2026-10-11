@@ -77,7 +77,7 @@ export class PitchDetector {
 
   constructor(
     sampleRate: number = 44100,
-    minFreq: number = 80,   // E2 (~82Hz) - excludes 50Hz/60Hz rumble while covering human vocal range
+    minFreq: number = 65,   // C2 (~65Hz) - covers human vocal range including low male chest voice
     maxFreq: number = 1000, // C6 (~1046Hz) - covers high soprano / falsetto
     yinThreshold: number = 0.15
   ) {
@@ -94,7 +94,7 @@ export class PitchDetector {
   /**
    * Detect pitch from Float32Array time domain data
    */
-  public detect(buffer: Float32Array<any>, rmsThreshold: number = 0.012): PitchDetectionResult {
+  public detect(buffer: Float32Array<any>, rmsThreshold: number = 0.003): PitchDetectionResult {
     const bufferSize = buffer.length;
 
     // 1. Calculate Root Mean Square (RMS) energy
@@ -124,8 +124,8 @@ export class PitchDetector {
     const maxPeriod = Math.min(Math.floor(bufferSize / 2), Math.floor(this.sampleRate / this.minFreq));
     const yinBuffer = new Float32Array(maxPeriod);
 
-    // Step by 1 for maximum precision
-    const step = 1; 
+    // Step by 2 to maintain responsive 60fps without starving the main thread
+    const step = 2; 
     const windowSize = bufferSize - maxPeriod;
 
     for (let tau = 0; tau < maxPeriod; tau++) {
@@ -171,7 +171,7 @@ export class PitchDetector {
           minIdx = tau;
         }
       }
-      if (minIdx !== -1 && minVal < 0.22) {
+      if (minIdx !== -1 && minVal < 0.32) {
         period = minIdx;
       }
     }

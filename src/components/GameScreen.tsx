@@ -15,6 +15,8 @@ interface GameScreenProps {
   handleScoreFrame: (isHit: boolean, targetNote: SongNote | null, distance: number) => void;
   onQuit: () => void;
   song?: Song;
+  micConnected?: boolean;
+  onConnectMic?: () => void;
 }
 
 export const GameScreen: React.FC<GameScreenProps> = ({
@@ -28,6 +30,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
   handleScoreFrame,
   onQuit,
   song,
+  micConnected,
+  onConnectMic,
 }) => {
   const activeSongNotes = song?.notes || SUNSHINE_NOTES;
   const activeTargetNote = activeSongNotes.find(
@@ -81,6 +85,21 @@ export const GameScreen: React.FC<GameScreenProps> = ({
             </span>
           </div>
         </div>
+
+        {!micConnected && onConnectMic && (
+          <div className="bg-amber-500/15 border border-amber-500/40 rounded-xl px-4 py-2.5 flex items-center justify-between text-amber-200 text-xs font-medium shadow-sm animate-pulse">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg text-amber-400">mic_off</span>
+              <span>Microfono non connesso! Pitch tracking disattivato finché non concedi l'accesso.</span>
+            </div>
+            <button
+              onClick={onConnectMic}
+              className="px-3.5 py-1.5 bg-amber-400 text-slate-950 font-bold rounded-lg hover:bg-amber-300 active:scale-95 transition-all cursor-pointer shrink-0"
+            >
+              Abilita Microfono
+            </button>
+          </div>
+        )}
 
         <div className="relative w-full rounded-xl overflow-hidden shadow-inner">
            <PianoRollCanvas
