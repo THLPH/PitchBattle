@@ -124,8 +124,8 @@ export class PitchDetector {
     const maxPeriod = Math.min(Math.floor(bufferSize / 2), Math.floor(this.sampleRate / this.minFreq));
     const yinBuffer = new Float32Array(maxPeriod);
 
-    // Step by 2 to prevent main thread freezing
-    const step = 2; 
+    // Step by 1 for maximum precision
+    const step = 1; 
     const windowSize = bufferSize - maxPeriod;
 
     for (let tau = 0; tau < maxPeriod; tau++) {

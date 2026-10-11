@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GameStage, PlayerStats, TunerState, SongNote, PitchRecord } from './types';
-import { SONG_DURATION, COUNT_IN_DURATION, SUNSHINE_NOTES } from './songs/sunshine';
+import { GameStage, PlayerStats, TunerState, SongNote, PitchRecord, Song } from './types';
+import { DEFAULT_SONG } from './songs';
 import { globalAudioEngine } from './audio/audioEngine';
 import { ArcadeHeader } from './components/ArcadeHeader';
 import { PianoRollCanvas } from './components/PianoRollCanvas';
 import { TunerDisplay } from './components/TunerDisplay';
 import { StartScreen } from './components/StartScreen';
+import { GameScreen } from "./components/GameScreen";
 import { IntermissionScreen } from './components/IntermissionScreen';
 import { WinnerScreen } from './components/WinnerScreen';
 import { AudioSettingsModal } from './components/AudioSettingsModal';
+import { SongLibraryModal } from './components/SongLibraryModal';
 
 const INITIAL_PLAYER_STATS: PlayerStats = {
   score: 0,
@@ -27,7 +29,9 @@ export default function App() {
   const [isSoloMode, setIsSoloMode] = useState<boolean>(false);
   const [micConnected, setMicConnected] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState<boolean>(false);
   const [autoSing, setAutoSing] = useState<boolean>(false);
+  const [currentSong, setCurrentSong] = useState<Song>(DEFAULT_SONG);
 
   // Player stats
   const [p1Stats, setP1Stats] = useState<PlayerStats>({ ...INITIAL_PLAYER_STATS });
@@ -125,7 +129,7 @@ export default function App() {
       });
 
       // Song completion check
-      if (isSingingStage && songTime >= SONG_DURATION) {
+      if (isSingingStage && songTime >= currentSong.duration) {
         globalAudioEngine.stopSong();
         if (currentStage === 'P1_SINGING') {
           if (isSoloMode) {
@@ -147,7 +151,7 @@ export default function App() {
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [isSoloMode]);
+  }, [isSoloMode, currentSong]);
 
   // Scoring Frame Handler from PianoRollCanvas
   const handleScoreFrame = useCallback(
@@ -253,17 +257,22 @@ export default function App() {
     globalAudioEngine.setAutoSing(enabled);
   };
 
+  const handleSelectSong = (song: Song) => {
+    setCurrentSong(song);
+    globalAudioEngine.setCurrentSong(song);
+  };
+
   // Identify current target lyric and MIDI for tuner display
-  const activeTargetNote = SUNSHINE_NOTES.find(
+  const activeTargetNote = currentSong.notes.find(
     (n) => currentTime >= n.start - 0.1 && currentTime <= n.end + 0.1
   );
 
   // Count-in state
-  const isCountIn = currentTime < COUNT_IN_DURATION;
-  const countInRemaining = Math.max(0, Math.ceil(COUNT_IN_DURATION - currentTime));
+  const isCountIn = currentTime < currentSong.countInDuration;
+  const countInRemaining = Math.max(0, Math.ceil(currentSong.countInDuration - currentTime));
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-background text-on-surface flex flex-col justify-between selection:bg-primary-fixed selection:text-on-primary-fixed">
       {/* Top Arcade Navigation & HUD */}
       <ArcadeHeader
         stage={stage}
@@ -271,7 +280,7 @@ export default function App() {
         p1Stats={p1Stats}
         p2Stats={p2Stats}
         songTime={currentTime}
-        totalDuration={SONG_DURATION}
+        totalDuration={currentSong.duration}
         isSoloMode={isSoloMode}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
@@ -288,63 +297,27 @@ export default function App() {
             tunerState={tunerState}
             autoSing={autoSing}
             onToggleAutoSing={handleToggleAutoSing}
+            currentSong={currentSong}
+            onOpenLibrary={() => setIsLibraryOpen(true)}
           />
         )}
 
         {(stage === 'P1_SINGING' || stage === 'P2_SINGING') && (
-          <div className="w-full space-y-4">
-            {/* Live Tuner & Pitch Gauge */}
-            <TunerDisplay
-              tuner={tunerState}
-              targetMidi={activeTargetNote ? activeTargetNote.midi : null}
-              targetLyric={activeTargetNote ? activeTargetNote.lyric : null}
-            />
-
-            {/* 2D Scrolling Piano Roll Canvas */}
-            <PianoRollCanvas
-              currentTime={currentTime}
-              currentMidi={tunerState.midi}
-              isVoiced={tunerState.isVoiced}
-              activeSinger={activeSinger}
-              ghostPitchHistory={stage === 'P2_SINGING' ? p1Stats.pitchHistory : undefined}
-              onScoreFrame={handleScoreFrame}
-              isCountIn={isCountIn}
-              countInSec={countInRemaining}
-            />
-
-            {/* Song Lyrics Banner */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 overflow-x-auto py-1">
-                {SUNSHINE_NOTES.map((note) => {
-                  const isCurrent = currentTime >= note.start && currentTime <= note.end;
-                  const isPassed = currentTime > note.end;
-                  return (
-                    <span
-                      key={note.id}
-                      className={`text-xs px-2 py-0.5 rounded transition font-medium whitespace-nowrap ${
-                        isCurrent
-                          ? 'bg-yellow-500 text-slate-950 font-bold scale-105'
-                          : isPassed
-                          ? 'text-slate-600'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      {note.lyric}
-                    </span>
-                  );
-                })}
-              </div>
-              <button
-                onClick={() => {
-                  globalAudioEngine.stopSong();
-                  setStage('START');
-                }}
-                className="text-xs text-slate-400 hover:text-slate-200 px-3 py-1 rounded bg-slate-800 border border-slate-700 whitespace-nowrap shrink-0 transition"
-              >
-                Quit Song
-              </button>
-            </div>
-          </div>
+          <GameScreen
+            tunerState={tunerState}
+            p1Stats={p1Stats}
+            p2Stats={p2Stats}
+            currentTime={currentTime}
+            activeSinger={activeSinger}
+            isCountIn={isCountIn}
+            countInSec={countInRemaining}
+            handleScoreFrame={handleScoreFrame}
+            song={currentSong}
+            onQuit={() => {
+              globalAudioEngine.stopSong();
+              setStage('START');
+            }}
+          />
         )}
 
         {stage === 'INTERMISSION' && (
@@ -360,25 +333,18 @@ export default function App() {
             p2Stats={p2Stats}
             isSoloMode={isSoloMode}
             onPlayAgain={handlePlayAgain}
+            song={currentSong}
           />
         )}
       </main>
 
-      {/* Footer / Control Bar */}
-      <footer className="w-full bg-slate-950 border-t border-slate-900 px-4 py-3 text-center text-xs text-slate-500 flex flex-wrap items-center justify-between gap-4 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <span className="font-arcade text-[10px] text-yellow-500">PITCHBATTLE</span>
-          <span>·</span>
-          <span>Web Audio Autocorrelation & YIN Algorithm</span>
-          <span>·</span>
-          <span>Octave-Folded Scoring</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span>Mic: {micConnected ? 'Active' : 'Standby'}</span>
-          <span>·</span>
-          <span>Keys [A-K] Pitch Simulation</span>
-        </div>
-      </footer>
+      {/* Song Library Practice Hub Modal */}
+      <SongLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        currentSong={currentSong}
+        onSelectSong={handleSelectSong}
+      />
 
       {/* Audio Settings Modal */}
       <AudioSettingsModal

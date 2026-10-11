@@ -1,0 +1,9 @@
+{
+  "name": "pitch-battle",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

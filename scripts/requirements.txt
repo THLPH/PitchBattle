@@ -1,0 +1,7 @@
+numpy>=1.20.0
+scipy>=1.7.0
+librosa>=0.9.0
+crepe>=0.0.12
+requests>=2.25.0
+# Demucs CLI must be installed globally or in your environment:
+# pip install -U demucs

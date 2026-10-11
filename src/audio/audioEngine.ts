@@ -1,7 +1,9 @@
-import { PitchDetector, PitchDetectionResult, midiToHz } from './pitchDetector';
-import { SUNSHINE_NOTES, SUNSHINE_CHORDS, SONG_DURATION } from '../songs/sunshine';
+import { PitchDetector, PitchDetectionResult, midiToHz, midiToNoteName } from './pitchDetector';
+import { Song } from '../types';
+import { DEFAULT_SONG } from '../songs';
 
 export class AudioEngine {
+  private currentSong: Song = DEFAULT_SONG;
   private ctx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private micStream: MediaStream | null = null;
@@ -29,7 +31,9 @@ export class AudioEngine {
   public backingVolume: number = 0.6;
   public guideVolume: number = 0.35;
   public sfxVolume: number = 0.5;
-  public rmsThreshold: number = 0.003;
+  public rmsThreshold: number = 0.01; // Increased to ignore background noise
+
+  private lastMidiValues: number[] = []; // For median filtering
 
   /**
    * Initialize or resume the AudioContext
@@ -69,6 +73,14 @@ export class AudioEngine {
     }
 
     return this.ctx;
+  }
+
+  public setCurrentSong(song: Song) {
+    this.currentSong = song;
+  }
+
+  public getCurrentSong(): Song {
+    return this.currentSong;
   }
 
   /**
@@ -140,7 +152,7 @@ export class AudioEngine {
 
     // Auto-sing mode for testing: automatically sings target pitch with realistic human micro-vibrato
     if (this.autoSingMode && currentTimeInSong !== undefined) {
-      const currentNote = SUNSHINE_NOTES.find(
+      const currentNote = this.currentSong.notes.find(
         (n) => currentTimeInSong >= n.start - 0.05 && currentTimeInSong <= n.end + 0.05
       );
       if (currentNote) {
@@ -162,6 +174,7 @@ export class AudioEngine {
     }
 
     if (!this.analyser) {
+      this.lastMidiValues = [];
       return {
         hz: null,
         midi: null,
@@ -175,7 +188,34 @@ export class AudioEngine {
     }
 
     this.analyser.getFloatTimeDomainData(this.timeDataBuffer);
-    return this.pitchDetector.detect(this.timeDataBuffer, this.rmsThreshold);
+    const result = this.pitchDetector.detect(this.timeDataBuffer, this.rmsThreshold);
+
+    // Apply Median Filter to smooth out 1-2 frame glitches
+    if (result.isVoiced && result.rawMidi !== null) {
+      this.lastMidiValues.push(result.rawMidi);
+      if (this.lastMidiValues.length > 5) {
+        this.lastMidiValues.shift(); // Keep last 5 frames
+      }
+
+      // Calculate median
+      const sorted = [...this.lastMidiValues].sort((a, b) => a - b);
+      const medianMidi = sorted[Math.floor(sorted.length / 2)];
+
+      // Overwrite the raw detection with the smoothed median detection
+      result.rawMidi = medianMidi;
+      result.midi = medianMidi;
+      result.hz = midiToHz(medianMidi);
+      
+      const roundedMidi = Math.round(medianMidi);
+      const noteInfo = midiToNoteName(roundedMidi);
+      result.cents = Math.round((medianMidi - roundedMidi) * 100);
+      result.noteName = noteInfo.fullName;
+    } else {
+      // Clear history when unvoiced to avoid gliding into the next phrase
+      this.lastMidiValues = [];
+    }
+
+    return result;
   }
 
   /**
@@ -212,9 +252,9 @@ export class AudioEngine {
   public scheduleBackingTrack(startAudioTime: number) {
     if (!this.ctx || !this.backingGain) return;
 
-    const tempoBpm = 100;
-    const beatInterval = 60 / tempoBpm; // 0.6 seconds per beat
-    const totalBeats = Math.floor(SONG_DURATION / beatInterval);
+    const tempoBpm = this.currentSong.bpm || 100;
+    const beatInterval = 60 / tempoBpm;
+    const totalBeats = Math.floor(this.currentSong.duration / beatInterval);
 
     // 1. Synthesize Drums
     for (let beat = 0; beat < totalBeats; beat++) {
@@ -236,7 +276,7 @@ export class AudioEngine {
     }
 
     // 2. Synthesize Chords & Bass
-    SUNSHINE_CHORDS.forEach((chord) => {
+    this.currentSong.chords.forEach((chord) => {
       const chordStart = startAudioTime + chord.time;
       const chordDuration = chord.duration;
 
@@ -258,7 +298,7 @@ export class AudioEngine {
   public scheduleGuideMelody(startAudioTime: number) {
     if (!this.ctx || !this.guideGain) return;
 
-    SUNSHINE_NOTES.forEach((note) => {
+    this.currentSong.notes.forEach((note) => {
       const noteStart = startAudioTime + note.start;
       const duration = note.end - note.start;
 

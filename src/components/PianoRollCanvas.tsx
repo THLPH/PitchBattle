@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { SongNote, PitchRecord, Particle, FloatingText } from '../types';
+import { SongNote, PitchRecord, Particle, FloatingText, Song } from '../types';
 import { SUNSHINE_NOTES } from '../songs/sunshine';
 import { getOctaveFoldedDistance, alignMidiToTargetOctave, midiToNoteName } from '../audio/pitchDetector';
 
@@ -12,6 +12,7 @@ interface PianoRollCanvasProps {
   onScoreFrame?: (isHit: boolean, note: SongNote | null, distance: number) => void;
   isCountIn: boolean;
   countInSec: number;
+  song?: Song;
 }
 
 export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
@@ -23,7 +24,10 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
   onScoreFrame,
   isCountIn,
   countInSec,
+  song,
 }) => {
+  const activeSongNotes = song?.notes || SUNSHINE_NOTES;
+  const hintText = song?.firstNoteHint || 'First Note: "You" (C4) at the hit line';
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const floatersRef = useRef<FloatingText[]>([]);
@@ -33,8 +37,8 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
   // Canvas configuration
   const HIT_LINE_X = 150;
   const PX_PER_SEC = 140;
-  const MIN_MIDI = 55; // G3
-  const MAX_MIDI = 74; // D5
+  const MIN_MIDI = 36; // C2 (Covers deepest bass voices)
+  const MAX_MIDI = 84; // C6 (Covers soprano falsetto)
   const MIDI_SPAN = MAX_MIDI - MIN_MIDI;
 
   // Converts MIDI note to Y coordinate on canvas
@@ -109,7 +113,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       ctx.fillRect(0, 0, width, height);
 
       // Horizontal pitch guideline bars
-      const keyMidis = [57, 60, 62, 64, 65, 67, 69, 72]; // A3, C4, D4, E4, F4, G4, A4, C5
+      const keyMidis = [36, 45, 48, 52, 55, 57, 60, 62, 64, 65, 67, 69, 72, 76, 79, 84]; // C2, A2, C3, E3, G3, A3, C4, D4, E4, F4, G4, A4, C5, E5, G5, C6
       keyMidis.forEach((midi) => {
         const y = midiToY(midi, height);
         const isC = midi % 12 === 0;
@@ -131,24 +135,19 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       });
 
       // 2. Identify Current Target Note at Hit Line
-      const activeTargetNote = SUNSHINE_NOTES.find(
+      const activeTargetNote = activeSongNotes.find(
         (n) => currentTime >= n.start - 0.05 && currentTime <= n.end + 0.05
       ) || null;
 
-      // 3. Evaluate Scoring Frame
       let isHitNow = false;
       let visualFoldedMidi: number | null = null;
       let minFoldedDistance = 999;
 
       if (isVoiced && currentMidi !== null) {
+        visualFoldedMidi = currentMidi; // Let the player see exactly what pitch they are hitting
         if (activeTargetNote) {
           minFoldedDistance = getOctaveFoldedDistance(currentMidi, activeTargetNote.midi);
           isHitNow = minFoldedDistance <= 0.75;
-          // Shift user pitch to match target note octave for clean on-screen hit alignment
-          visualFoldedMidi = alignMidiToTargetOctave(currentMidi, activeTargetNote.midi);
-        } else {
-          // If no active note, align around center octave C4 (60)
-          visualFoldedMidi = alignMidiToTargetOctave(currentMidi, 64);
         }
       }
 
@@ -192,9 +191,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
         ghostPitchHistory.forEach((pt) => {
           const x = HIT_LINE_X + (pt.time - currentTime) * PX_PER_SEC;
           if (x >= -50 && x <= width + 50) {
-            // Find target note at that historical time for octave alignment
-            const histTarget = SUNSHINE_NOTES.find((n) => pt.time >= n.start && pt.time <= n.end);
-            const alignedMidi = alignMidiToTargetOctave(pt.midi, histTarget ? histTarget.midi : 64);
+            const alignedMidi = pt.rawMidi || pt.midi; // Use exact pitch
             const y = midiToY(alignedMidi, height);
 
             if (!startedGhostPath) {
@@ -215,13 +212,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
           (p) => Math.abs(p.time - currentTime) < 0.08
         );
         if (currentGhostSample) {
-          const histTarget = SUNSHINE_NOTES.find(
-            (n) => currentGhostSample.time >= n.start && currentGhostSample.time <= n.end
-          );
-          const ghostY = midiToY(
-            alignMidiToTargetOctave(currentGhostSample.midi, histTarget ? histTarget.midi : 64),
-            height
-          );
+          const ghostY = midiToY(currentGhostSample.rawMidi || currentGhostSample.midi, height);
           ctx.save();
           ctx.fillStyle = 'rgba(6, 182, 212, 0.5)';
           ctx.strokeStyle = '#22d3ee';
@@ -240,11 +231,11 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       }
 
       // 5. Draw Target Note Blocks
-      SUNSHINE_NOTES.forEach((note) => {
+      activeSongNotes.forEach((note) => {
         const noteX = HIT_LINE_X + (note.start - currentTime) * PX_PER_SEC;
         const noteWidth = (note.end - note.start) * PX_PER_SEC;
         const noteY = midiToY(note.midi, height);
-        const noteHeight = 22;
+        const noteHeight = 10;
 
         // Skip notes off-screen
         if (noteX + noteWidth < -50 || noteX > width + 50) return;
@@ -435,7 +426,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
         ctx.font = '600 16px "Chakra Petch", sans-serif';
         ctx.fillStyle = '#94a3b8';
         ctx.shadowBlur = 0;
-        ctx.fillText('First Note: "You" (C4) at the hit line', width / 2, height / 2 + 35);
+        ctx.fillText(hintText, width / 2, height / 2 + 35);
         ctx.restore();
       }
 
@@ -447,7 +438,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [currentTime, currentMidi, isVoiced, activeSinger, ghostPitchHistory, isCountIn, countInSec, onScoreFrame]);
+  }, [currentTime, currentMidi, isVoiced, activeSinger, ghostPitchHistory, isCountIn, countInSec, onScoreFrame, song, activeSongNotes, hintText]);
 
   return (
     <div className="relative w-full h-[360px] md:h-[400px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">

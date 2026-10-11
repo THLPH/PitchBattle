@@ -34,7 +34,7 @@ export const IntermissionScreen: React.FC<IntermissionScreenProps> = ({
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-10 text-center">
       {/* Turn Transition Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+      <div className="bg-surface-container border border-outline-variant rounded-3xl p-8 shadow-2xl relative overflow-hidden">
         {/* Glow backdrop */}
         <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -43,26 +43,26 @@ export const IntermissionScreen: React.FC<IntermissionScreenProps> = ({
           <span>ROUND 1 COMPLETE</span>
         </div>
 
-        <h2 className="font-arcade text-2xl sm:text-3xl text-yellow-400 mb-2">
+        <h2 className="font-arcade text-2xl sm:text-3xl text-on-surface mb-2">
           PASS THE MIC!
         </h2>
-        <p className="text-slate-400 text-sm max-w-md mx-auto mb-6">
-          Hand the microphone over to <span className="text-pink-400 font-bold">Player 2</span>.
+        <p className="text-on-surface-variant text-sm max-w-md mx-auto mb-6">
+          Hand the microphone over to <span className="text-secondary font-bold">Player 2</span>.
         </p>
 
         {/* Player 1 Score Report */}
-        <div className="bg-slate-950 rounded-2xl p-5 border border-slate-800/80 mb-6 text-left">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <span className="font-display font-bold text-sm text-cyan-400 flex items-center gap-2">
+        <div className="bg-surface-container-lowest rounded-2xl p-5 border border-outline-variant/80 mb-6 text-left">
+          <div className="flex items-center justify-between pb-3 border-b border-outline-variant">
+            <span className="font-display font-bold text-sm text-primary flex items-center gap-2">
               <Trophy className="w-4 h-4" /> Player 1 Performance
             </span>
-            <span className="text-xs text-slate-400">Target to beat</span>
+            <span className="text-xs text-on-surface-variant">Target to beat</span>
           </div>
 
           <div className="grid grid-cols-3 gap-4 pt-4 text-center">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-500 block">Final Score</span>
-              <span className="font-arcade text-lg sm:text-xl text-yellow-400 tabular-nums">
+              <span className="font-arcade text-lg sm:text-xl text-on-surface tabular-nums">
                 {p1Stats.score.toLocaleString()}
               </span>
             </div>
@@ -90,10 +90,10 @@ export const IntermissionScreen: React.FC<IntermissionScreenProps> = ({
         {/* Ready Button or Countdown */}
         {countdown !== null ? (
           <div className="py-4">
-            <div className="font-arcade text-4xl text-yellow-400 animate-pulse">
+            <div className="font-arcade text-4xl text-on-surface animate-pulse">
               {countdown > 0 ? countdown : 'GO!'}
             </div>
-            <p className="text-xs text-slate-400 mt-2">Player 2 starting...</p>
+            <p className="text-xs text-on-surface-variant mt-2">Player 2 starting...</p>
           </div>
         ) : (
           <button

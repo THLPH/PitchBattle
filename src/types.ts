@@ -10,6 +10,32 @@ export interface SongNote {
   lyric: string; // syllable or lyric text
 }
 
+export interface ChordEvent {
+  time: number;
+  duration: number;
+  root: number;     // MIDI note for bass (e.g. 36 = C2)
+  chordNotes: number[]; // MIDI notes for triad/chord (e.g. [48, 52, 55] = C3, E3, G3)
+  name: string;
+}
+
+export interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  genre: string;
+  difficulty: number; // 1 to 5
+  duration: number;   // in seconds
+  countInDuration: number;
+  bpm: number;
+  key: string;
+  vocalRange: string;
+  description: string;
+  firstNoteHint: string;
+  notes: SongNote[];
+  chords: ChordEvent[];
+  audioUrl?: string;
+}
+
 export interface PitchRecord {
   time: number;
   midi: number;

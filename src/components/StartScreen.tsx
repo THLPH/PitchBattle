@@ -1,238 +1,84 @@
-import React, { useState } from 'react';
-import { Mic, Users, User, Music, Sparkles, CheckCircle2, AlertCircle, Bot } from 'lucide-react';
-import { TunerState } from '../types';
+import React from 'react';
+import { TunerState, Song } from '../types';
 
 interface StartScreenProps {
   isSoloMode: boolean;
   onSetSoloMode: (solo: boolean) => void;
   onStartGame: () => void;
   micConnected: boolean;
-  onConnectMic: () => Promise<boolean>;
+  onConnectMic: () => void;
   tunerState: TunerState;
   autoSing: boolean;
   onToggleAutoSing: (enabled: boolean) => void;
+  currentSong: Song;
+  onOpenLibrary: () => void;
 }
 
 export const StartScreen: React.FC<StartScreenProps> = ({
-  isSoloMode,
-  onSetSoloMode,
   onStartGame,
   micConnected,
   onConnectMic,
   tunerState,
   autoSing,
   onToggleAutoSing,
+  currentSong,
+  onOpenLibrary,
 }) => {
-  const [micTesting, setMicTesting] = useState(false);
-  const [micError, setMicError] = useState<string | null>(null);
-
-  const handleTestMic = async () => {
-    setMicTesting(true);
-    setMicError(null);
-    const success = await onConnectMic();
-    if (!success) {
-      setMicError('Could not access microphone. You can still play with Auto-Singer or simulated pitch!');
-    }
-    setMicTesting(false);
-  };
-
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-8">
-      {/* Hero Arcade Title */}
-      <div className="text-center mb-8 relative">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-yellow-950/40 border border-yellow-700/50 rounded-full text-yellow-400 text-xs font-semibold mb-3">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Web Audio Pitch Detection & Octave Folding</span>
-        </div>
-
-        <h1 className="font-arcade text-3xl sm:text-5xl text-yellow-400 tracking-wider mb-2">
-          PITCH<span className="text-pink-500">BATTLE</span>
+    <section className="relative w-full min-h-[calc(100vh-5rem)] flex flex-col justify-between px-margin-mobile lg:px-margin max-w-[1440px] mx-auto py-space-xl">
+<div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[720px] h-[340px] bg-primary/5 rounded-full blur-3xl pointer-events-none -z-10"></div>
+<div className="flex items-center justify-between w-full pt-space-sm"><button id="theme-toggle" type="button" onClick={() => document.documentElement.classList.toggle('dark')} className="inline-flex items-center justify-center w-11 h-11 rounded-full bg-surface-container hover:bg-surface-container-high transition-colors text-on-surface shadow-sm cursor-pointer" aria-label="Cambia tema" ><span id="theme-icon" className="material-symbols-outlined text-[24px] text-primary">dark_mode</span></button><div className="inline-flex items-center gap-space-xs px-space-md py-1.5 rounded-full bg-surface-container shadow-sm border border-outline-variant/30 text-on-surface" ><span className="material-symbols-outlined text-[18px] text-primary">emoji_events</span><span className="font-badge-score text-badge-score tracking-wider uppercase font-semibold text-on-surface">BEL CANTO</span><span className="w-px h-3 bg-outline-variant/50"></span><span className="font-meter-readout text-badge-score text-tertiary font-bold">2844 cantanti online ora</span></div></div>
+<div className="flex flex-col items-center text-center my-auto py-space-xl">
+<div className="flex flex-col items-center max-w-4xl mx-auto gap-6 py-4">
+<span className="font-badge-score text-sm md:text-base tracking-[0.25em] text-primary uppercase font-semibold">
+          Duello Vocale Istantaneo • Pitch-Tracked Live
+        </span>
+<h1 className="font-display-hero text-6xl md:text-8xl tracking-tight text-on-surface text-balance">
+          Musiggle
         </h1>
-        <p className="text-slate-400 text-sm sm:text-base max-w-lg mx-auto font-medium">
-          The retro 1v1 karaoke duel. Hit the notes, build multiplier streaks, and battle against your rival's ghost contour!
+<p className="font-subheading-aria text-xl md:text-3xl italic text-primary font-normal tracking-wide">
+          “La voce non mente mai.”
         </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Game Mode Selection */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
-          <div>
-            <h2 className="font-display font-bold text-lg text-slate-100 mb-1 flex items-center gap-2">
-              <Users className="w-5 h-5 text-cyan-400" />
-              Select Battle Mode
-            </h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Play against a friend in turn-based battle or hone your pitch solo.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => onSetSoloMode(false)}
-                className={`p-4 rounded-xl border text-left transition flex flex-col justify-between ${
-                  !isSoloMode
-                    ? 'bg-cyan-950/40 border-cyan-500 shadow-lg shadow-cyan-950/50 text-cyan-200'
-                    : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-arcade text-xs text-yellow-400">1v1 BATTLE</span>
-                  <Users className="w-4 h-4 text-cyan-400" />
-                </div>
-                <p className="text-[11px] leading-relaxed text-slate-300">
-                  Player 1 sings, then Player 2 sings facing Player 1's live Ghost Contour.
-                </p>
-              </button>
-
-              <button
-                onClick={() => onSetSoloMode(true)}
-                className={`p-4 rounded-xl border text-left transition flex flex-col justify-between ${
-                  isSoloMode
-                    ? 'bg-pink-950/40 border-pink-500 shadow-lg shadow-pink-950/50 text-pink-200'
-                    : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-arcade text-xs text-yellow-400">SOLO</span>
-                  <User className="w-4 h-4 text-pink-400" />
-                </div>
-                <p className="text-[11px] leading-relaxed text-slate-300">
-                  Single player pitch workout. Score as high as possible on the song!
-                </p>
-              </button>
-            </div>
-          </div>
-
-          {/* Song Card */}
-          <div className="mt-5 p-3.5 bg-slate-950 rounded-xl border border-slate-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
-                <Music className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Featured Track</span>
-                <span className="font-display font-bold text-sm text-slate-200">You Are My Sunshine</span>
-              </div>
-            </div>
-            <span className="text-xs font-mono text-cyan-400 px-2 py-1 bg-cyan-950/60 rounded border border-cyan-800/40">
-              ~30 SECONDS
-            </span>
-          </div>
-        </div>
-
-        {/* Microphone Setup & Check */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-display font-bold text-lg text-slate-100 flex items-center gap-2">
-                <Mic className="w-5 h-5 text-emerald-400" />
-                Microphone Test
-              </h2>
-              {micConnected ? (
-                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Mic Ready
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                  Not Connected
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mb-4">
-              Sing or hum into your microphone to verify pitch detection before starting.
-            </p>
-
-            {/* Live Mic Test Display */}
-            <div className="bg-slate-950 rounded-xl p-4 border border-slate-800">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-400 font-medium">Detected Pitch:</span>
-                <span className={`font-arcade text-sm ${tunerState.isVoiced ? 'text-emerald-400' : 'text-slate-600'}`}>
-                  {tunerState.isVoiced ? `${tunerState.noteName} (${Math.round(tunerState.hz || 0)} Hz)` : '--'}
-                </span>
-              </div>
-
-              {/* Volume Level VU Meter */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                  <span>INPUT LEVEL</span>
-                  <span>{Math.round(tunerState.rms * 400)}%</span>
-                </div>
-                <div className="h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                  <div
-                    className="h-full bg-gradient-to-r from-cyan-500 via-emerald-400 to-rose-500 transition-all duration-75"
-                    style={{ width: `${Math.min(100, tunerState.rms * 400)}%` }}
-                  />
-                </div>
-              </div>
-
-              {micError && (
-                <div className="mt-3 p-2 bg-rose-950/40 border border-rose-800/50 rounded text-rose-300 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{micError}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            <button
-              onClick={handleTestMic}
-              disabled={micTesting}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold font-display border border-slate-700 transition flex items-center justify-center gap-2"
-            >
-              <Mic className="w-4 h-4 text-emerald-400" />
-              {micTesting ? 'Checking...' : micConnected ? 'Mic Connected ✓' : 'Enable & Test Mic'}
-            </button>
-
-            {/* Auto-sing fallback button */}
-            <button
-              onClick={() => onToggleAutoSing(!autoSing)}
-              className={`py-2.5 px-3 rounded-xl border text-xs font-bold font-display transition flex items-center justify-center gap-1.5 ${
-                autoSing
-                  ? 'bg-purple-950/80 border-purple-500 text-purple-200'
-                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-              title="Hands-free demo simulator without mic"
-            >
-              <Bot className="w-3.5 h-3.5 text-purple-400" />
-              <span>Auto-Singer: {autoSing ? 'ON' : 'OFF'}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Rules & Game Mechanics Overview */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 mb-8">
-        <h3 className="font-display font-bold text-xs uppercase tracking-wider text-slate-400 mb-3">
-          How to Play & Score
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-300">
-          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
-            <span className="font-bold text-yellow-400 block mb-1">1. Hit the Notes</span>
-            Target note blocks scroll left to the Hit Line (x=150). Sing in pitch to turn them green and spark particles.
-          </div>
-          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
-            <span className="font-bold text-emerald-400 block mb-1">2. Octave Folding</span>
-            Sing in whatever register is comfortable (baritone, tenor, soprano). Pitch is folded across octaves so anyone can win!
-          </div>
-          <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/60">
-            <span className="font-bold text-pink-400 block mb-1">3. Battle the Ghost</span>
-            Player 2 sees Player 1's glowing ghost curve trailing through the song. Beat their score to claim victory!
-          </div>
-        </div>
-      </div>
-
-      {/* Big Start Button */}
-      <div className="text-center">
-        <button
-          onClick={onStartGame}
-          className="w-full sm:w-auto min-w-[280px] py-4 px-8 rounded-2xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-slate-950 font-arcade text-base tracking-wider shadow-xl shadow-yellow-500/20 active:scale-98 transition transform cursor-pointer font-bold"
-        >
-          {isSoloMode ? 'START SOLO SUNG' : 'START 1v1 BATTLE'}
-        </button>
-        <p className="text-[11px] text-slate-500 mt-2 font-mono">
-          Tip: You can also use keyboard keys [A, S, D, F, G, H, J] to simulate notes C4 through B4.
+<p className="font-body-default text-base md:text-xl text-on-surface-variant max-w-xl mx-auto text-balance leading-relaxed">
+          Accoppiamento casuale 1 contro 1. La precisione dell'intonazione a confronto in tempo reale. Due microfoni, una sola melodia, nessun artificio.
         </p>
+</div>
+<div className="w-full max-w-md mt-space-xl flex flex-col items-center gap-space-md">
+  {/* Selected Song Preview Pill */}
+  <button
+    type="button"
+    onClick={onOpenLibrary}
+    className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/30 text-on-surface shadow-xs transition-all text-left cursor-pointer group"
+  >
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors">
+        <span className="material-symbols-outlined text-[18px]">album</span>
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] font-meter-readout uppercase tracking-widest text-outline font-semibold">Brano Selezionato</span>
+        <span className="text-sm font-bold text-on-surface line-clamp-1">{currentSong.title}</span>
       </div>
     </div>
+    <div className="flex items-center gap-1 text-xs text-primary font-semibold shrink-0">
+      <span className="hidden sm:inline">Cambia Brano</span>
+      <span className="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+    </div>
+  </button>
+
+  <a className="group relative w-full flex flex-col items-center justify-center text-center px-space-lg py-7 rounded-xl bg-primary text-on-primary shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 overflow-hidden cursor-pointer" data-path="mic-check-&-calibration" href="#" onClick={(e) => { e.preventDefault(); onStartGame(); }}><div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div><div className="flex items-center justify-center gap-space-xs mb-2"><span className="material-symbols-outlined text-[28px] text-primary-fixed">swords</span><span className="material-symbols-outlined text-[28px] text-on-primary">mic</span></div><div className="flex flex-col items-center justify-center text-center"><span className="font-body-lyric-lg text-body-lyric-lg font-bold tracking-tight text-on-primary leading-tight text-center">Entra in Coda</span><span className="font-badge-score text-badge-score uppercase text-primary-fixed tracking-wider opacity-90 mt-1 text-center">1v1 Vocal Battle • {currentSong.title}</span></div></a>
+  <div className="grid grid-cols-2 gap-space-sm w-full">
+    <button onClick={onOpenLibrary} className="flex items-center justify-center gap-space-xs px-space-md py-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface hover:text-primary shadow-sm transition-all text-left cursor-pointer" type="button">
+      <span className="material-symbols-outlined text-[18px] text-on-surface-variant">library_music</span>
+      <span className="font-body-default text-body-default font-medium">Canzoniere</span>
+    </button>
+    <button className="flex items-center justify-center gap-space-xs px-space-md py-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface hover:text-primary shadow-sm transition-all text-left" type="button">
+      <span className="material-symbols-outlined text-[18px] text-on-surface-variant">lock</span>
+      <span className="font-body-default text-body-default font-medium">Stanza Privata</span>
+    </button>
+  </div>
+</div>
+</div>
+
+</section>
   );
 };
