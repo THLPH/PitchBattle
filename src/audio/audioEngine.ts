@@ -23,7 +23,6 @@ export class AudioEngine {
   // Playback state
   private isPlayingSong: boolean = false;
   private songStartTime: number = 0;
-  private virtualMidi: number | null = null;
   private autoSingMode: boolean = false;
 
   // Volume levels (0.0 to 1.0)
@@ -128,10 +127,6 @@ export class AudioEngine {
     return !!this.micStream;
   }
 
-  public setVirtualMidi(midi: number | null) {
-    this.virtualMidi = midi;
-  }
-
   public setAutoSing(enabled: boolean) {
     this.autoSingMode = enabled;
   }
@@ -141,23 +136,9 @@ export class AudioEngine {
   }
 
   /**
-   * Get current pitch reading from mic (or virtual pitch simulator)
+   * Get current pitch reading from microphone
    */
   public getPitch(currentTimeInSong?: number): PitchDetectionResult {
-    // If virtual pitch override is active (e.g. keyboard simulator)
-    if (this.virtualMidi !== null) {
-      const hz = midiToHz(this.virtualMidi);
-      return {
-        hz,
-        midi: this.virtualMidi,
-        rawMidi: this.virtualMidi,
-        rms: 0.15,
-        clarity: 0.99,
-        noteName: "SIM",
-        cents: 0,
-        isVoiced: true,
-      };
-    }
 
     // Auto-sing mode for testing: automatically sings target pitch with realistic human micro-vibrato
     if (this.autoSingMode && currentTimeInSong !== undefined) {

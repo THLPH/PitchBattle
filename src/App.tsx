@@ -63,46 +63,6 @@ export default function App() {
     return success;
   }, []);
 
-  // Keyboard pitch simulator mapping for testing without mic
-  useEffect(() => {
-    const keyToMidiMap: Record<string, number> = {
-      a: 60, // C4
-      w: 61, // C#4
-      s: 62, // D4
-      e: 63, // D#4
-      d: 64, // E4
-      f: 65, // F4
-      t: 66, // F#4
-      g: 67, // G4
-      y: 68, // G#4
-      h: 69, // A4
-      u: 70, // A#4
-      j: 71, // B4
-      k: 72, // C5
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      const key = e.key.toLowerCase();
-      if (keyToMidiMap[key]) {
-        globalAudioEngine.setVirtualMidi(keyToMidiMap[key]);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      if (keyToMidiMap[key]) {
-        globalAudioEngine.setVirtualMidi(null);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   // Main real-time audio polling loop
   useEffect(() => {
