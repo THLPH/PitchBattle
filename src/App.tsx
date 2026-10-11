@@ -302,7 +302,7 @@ export default function App() {
           />
         )}
 
-        {(stage === 'P1_SINGING' || stage === 'P2_SINGING') && (
+        {(stage === 'P1_SINGING' || stage === 'P2_SINGING' || stage === 'WINNER') && (
           <GameScreen
             tunerState={tunerState}
             p1Stats={p1Stats}
@@ -333,6 +333,10 @@ export default function App() {
             p2Stats={p2Stats}
             isSoloMode={isSoloMode}
             onPlayAgain={handlePlayAgain}
+            onHome={() => {
+              globalAudioEngine.stopSong();
+              setStage('START');
+            }}
             song={currentSong}
           />
         )}

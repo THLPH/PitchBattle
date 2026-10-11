@@ -33,17 +33,25 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
   const floatersRef = useRef<FloatingText[]>([]);
   const lastScoreEvaluationRef = useRef<number>(0);
   const noteHitsMapRef = useRef<Map<number, number>>(new Map()); // noteId -> hits count
+  const liveTrailRef = useRef<{ time: number; midi: number; isVoiced: boolean; isHit: boolean }[]>([]);
+  const playerOctaveShiftRef = useRef<number>(0);
 
   // Canvas configuration
   const HIT_LINE_X = 150;
   const PX_PER_SEC = 140;
-  const MIN_MIDI = 36; // C2 (Covers deepest bass voices)
-  const MAX_MIDI = 84; // C6 (Covers soprano falsetto)
+
+  // Center vertical range on active song notes (2-octave responsive window)
+  const songMidiValues = activeSongNotes.map((n) => n.midi);
+  const songCenterMidi = songMidiValues.length > 0
+    ? songMidiValues.reduce((a, b) => a + b, 0) / songMidiValues.length
+    : 62;
+  const MIN_MIDI = Math.max(36, Math.floor(songCenterMidi - 12));
+  const MAX_MIDI = Math.min(88, Math.ceil(songCenterMidi + 12));
   const MIDI_SPAN = MAX_MIDI - MIN_MIDI;
 
   // Converts MIDI note to Y coordinate on canvas
   const midiToY = (midi: number, height: number): number => {
-    const clamped = Math.max(MIN_MIDI - 1, Math.min(MAX_MIDI + 1, midi));
+    const clamped = Math.max(MIN_MIDI - 0.5, Math.min(MAX_MIDI + 0.5, midi));
     const ratio = (clamped - MIN_MIDI) / MIDI_SPAN;
     const padding = 35;
     const availableHeight = height - padding * 2;
@@ -112,8 +120,10 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       ctx.fillStyle = '#060a14';
       ctx.fillRect(0, 0, width, height);
 
-      // Horizontal pitch guideline bars
-      const keyMidis = [36, 45, 48, 52, 55, 57, 60, 62, 64, 65, 67, 69, 72, 76, 79, 84]; // C2, A2, C3, E3, G3, A3, C4, D4, E4, F4, G4, A4, C5, E5, G5, C6
+      // Horizontal pitch guideline bars within [MIN_MIDI, MAX_MIDI]
+      const keyMidis = [36, 40, 43, 45, 48, 50, 52, 55, 57, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 84].filter(
+        (m) => m >= MIN_MIDI && m <= MAX_MIDI
+      );
       keyMidis.forEach((midi) => {
         const y = midiToY(midi, height);
         const isC = midi % 12 === 0;
@@ -140,23 +150,48 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       ) || null;
 
       let isHitNow = false;
-      let visualFoldedMidi: number | null = null;
-      let minFoldedDistance = 999;
+      let alignedPlayerMidi: number | null = null;
+      let scoreDistance = 999;
 
       if (isVoiced && currentMidi !== null) {
-        visualFoldedMidi = currentMidi; // Let the player see exactly what pitch they are hitting
-        if (activeTargetNote) {
-          minFoldedDistance = getOctaveFoldedDistance(currentMidi, activeTargetNote.midi);
-          isHitNow = minFoldedDistance <= 0.75;
+        // Reference note for octave folding: active note if singing a note, or song center
+        const targetRef = activeTargetNote ? activeTargetNote.midi : songCenterMidi;
+
+        // Hysteresis octave tracking: keep octave stable unless player moves > 7 semitones outside
+        const currentShift = playerOctaveShiftRef.current;
+        const currentDiff = targetRef - (currentMidi + currentShift);
+        if (Math.abs(currentDiff) > 7) {
+          playerOctaveShiftRef.current = Math.round((targetRef - currentMidi) / 12) * 12;
         }
+
+        alignedPlayerMidi = currentMidi + playerOctaveShiftRef.current;
+
+        if (activeTargetNote) {
+          scoreDistance = Math.abs(alignedPlayerMidi - activeTargetNote.midi);
+          // Strict physical contact: indicator pointer must physically touch target note block (±0.85 semitones)
+          isHitNow = scoreDistance <= 0.85;
+        }
+
+        // Add to live singing ribbon trail
+        liveTrailRef.current.push({
+          time: currentTime,
+          midi: alignedPlayerMidi,
+          isVoiced: true,
+          isHit: isHitNow,
+        });
       }
+
+      // Prune trail points older than 2.8 seconds
+      liveTrailRef.current = liveTrailRef.current.filter(
+        (pt) => currentTime - pt.time <= 2.8 && pt.time <= currentTime + 0.05
+      );
 
       // Trigger score callback at ~30Hz rate
       const nowMs = performance.now();
       if (nowMs - lastScoreEvaluationRef.current > 30) {
         lastScoreEvaluationRef.current = nowMs;
         if (onScoreFrame) {
-          onScoreFrame(isHitNow, activeTargetNote, minFoldedDistance);
+          onScoreFrame(isHitNow, activeTargetNote, scoreDistance);
         }
 
         if (isHitNow && activeTargetNote) {
@@ -165,7 +200,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
 
           // Spawn occasional floating text on sustained hit
           if (currentCount % 12 === 1) {
-            const isPerfect = minFoldedDistance <= 0.35;
+            const isPerfect = scoreDistance <= 0.4;
             spawnFloatingText(
               HIT_LINE_X + 20,
               midiToY(activeTargetNote.midi, height) - 18,
@@ -191,7 +226,8 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
         ghostPitchHistory.forEach((pt) => {
           const x = HIT_LINE_X + (pt.time - currentTime) * PX_PER_SEC;
           if (x >= -50 && x <= width + 50) {
-            const alignedMidi = pt.rawMidi || pt.midi; // Use exact pitch
+            const raw = pt.rawMidi || pt.midi;
+            const alignedMidi = alignMidiToTargetOctave(raw, songCenterMidi);
             const y = midiToY(alignedMidi, height);
 
             if (!startedGhostPath) {
@@ -212,7 +248,8 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
           (p) => Math.abs(p.time - currentTime) < 0.08
         );
         if (currentGhostSample) {
-          const ghostY = midiToY(currentGhostSample.rawMidi || currentGhostSample.midi, height);
+          const raw = currentGhostSample.rawMidi || currentGhostSample.midi;
+          const ghostY = midiToY(alignMidiToTargetOctave(raw, songCenterMidi), height);
           ctx.save();
           ctx.fillStyle = 'rgba(6, 182, 212, 0.5)';
           ctx.strokeStyle = '#22d3ee';
@@ -228,6 +265,39 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
           ctx.fillText('P1 GHOST', HIT_LINE_X - 54, ghostY + 3);
           ctx.restore();
         }
+      }
+
+      // 4.5. Draw Player Live Singing Ribbon Trail
+      if (liveTrailRef.current.length > 1) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        for (let i = 1; i < liveTrailRef.current.length; i++) {
+          const p1 = liveTrailRef.current[i - 1];
+          const p2 = liveTrailRef.current[i];
+
+          // Skip if there was a pause or silence
+          if (p2.time - p1.time > 0.12) continue;
+
+          const x1 = HIT_LINE_X + (p1.time - currentTime) * PX_PER_SEC;
+          const y1 = midiToY(p1.midi, height);
+          const x2 = HIT_LINE_X + (p2.time - currentTime) * PX_PER_SEC;
+          const y2 = midiToY(p2.midi, height);
+
+          if (x2 < -30 || x1 > width + 30) continue;
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          const trailColor = p2.isHit ? '#34d399' : (activeSinger === 'P1' ? '#38bdf8' : '#f472b6');
+          ctx.strokeStyle = trailColor;
+          ctx.lineWidth = p2.isHit ? 4 : 2.5;
+          ctx.shadowColor = trailColor;
+          ctx.shadowBlur = p2.isHit ? 8 : 4;
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       // 5. Draw Target Note Blocks
@@ -327,8 +397,8 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
       ctx.restore();
 
       // 7. Draw Live Pitch Indicator Dot & Trail
-      if (isVoiced && visualFoldedMidi !== null) {
-        const userY = midiToY(visualFoldedMidi, height);
+      if (isVoiced && alignedPlayerMidi !== null) {
+        const userY = midiToY(alignedPlayerMidi, height);
         const singerColor = activeSinger === 'P1' ? '#38bdf8' : '#f472b6';
         const hitColor = '#34d399';
         const activeColor = isHitNow ? hitColor : singerColor;
@@ -359,9 +429,9 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
         ctx.fillStyle = '#ffffff';
         ctx.fill();
 
-        // Octave register tag (e.g. "8vb" or "UNISON")
-        if (activeTargetNote && currentMidi !== null) {
-          const octaveOffset = Math.round((currentMidi - activeTargetNote.midi) / 12);
+        // Octave register tag (e.g. "8vb" or "✓")
+        if (currentMidi !== null) {
+          const octaveOffset = Math.round((currentMidi - (activeTargetNote ? activeTargetNote.midi : songCenterMidi)) / 12);
           const tag = octaveOffset === 0 ? '✓' : octaveOffset < 0 ? `${Math.abs(octaveOffset)} 8vb` : `+${octaveOffset} 8va`;
           ctx.font = '700 9px "Chakra Petch", sans-serif';
           ctx.fillStyle = isHitNow ? '#34d399' : '#94a3b8';
@@ -455,7 +525,7 @@ export const PianoRollCanvas: React.FC<PianoRollCanvasProps> = ({
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span className="font-mono">HIT LINE x=150</span>
         <span className="text-slate-600">·</span>
-        <span className="text-emerald-400">±0.75 Semitone Tolerance (Octave Folded)</span>
+        <span className="text-emerald-400">Smart Octave Tracking · ±0.85 Physical Hit Window</span>
       </div>
     </div>
   );

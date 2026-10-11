@@ -104,8 +104,13 @@ export class AudioEngine {
             this.micSource.disconnect();
           }
           this.micSource = this.ctx.createMediaStreamSource(this.micStream);
+          // High-pass filter at 80Hz to eliminate fan noise, table rumble and 50/60Hz electrical hum
+          const highpass = this.ctx.createBiquadFilter();
+          highpass.type = 'highpass';
+          highpass.frequency.setValueAtTime(80, this.ctx.currentTime);
+          this.micSource.connect(highpass);
           // Connect to analyser ONLY, NOT to destination to prevent feedback!
-          this.micSource.connect(this.analyser);
+          highpass.connect(this.analyser);
         }
       }
       return true;

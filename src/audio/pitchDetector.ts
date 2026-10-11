@@ -77,7 +77,7 @@ export class PitchDetector {
 
   constructor(
     sampleRate: number = 44100,
-    minFreq: number = 65,  // C2 (~65Hz) - covers low male voices
+    minFreq: number = 80,   // E2 (~82Hz) - excludes 50Hz/60Hz rumble while covering human vocal range
     maxFreq: number = 1000, // C6 (~1046Hz) - covers high soprano / falsetto
     yinThreshold: number = 0.15
   ) {
@@ -171,7 +171,7 @@ export class PitchDetector {
           minIdx = tau;
         }
       }
-      if (minIdx !== -1 && minVal < 0.35) {
+      if (minIdx !== -1 && minVal < 0.22) {
         period = minIdx;
       }
     }
