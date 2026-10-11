@@ -171,7 +171,7 @@ export class PitchDetector {
           minIdx = tau;
         }
       }
-      if (minIdx !== -1 && minVal < 0.32) {
+      if (minIdx !== -1 && minVal < 0.35) {
         period = minIdx;
       }
     }
