@@ -2,7 +2,7 @@
   "name": "pitch-battle",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/.*).*)",
       "destination": "/index.html"
     }
   ]

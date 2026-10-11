@@ -35,8 +35,41 @@ export const WinnerScreen: React.FC<WinnerScreenProps> = ({
     const fetchAiFeedback = async () => {
       setIsAiLoading(true);
       try {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
         const songName = song?.title || "You Are My Sunshine";
+
+        // 1. Try secure backend proxy first (Vercel Serverless API)
+        try {
+          const apiRes = await fetch('/api/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              songTitle: songName,
+              score: p1Stats.score,
+              perfectHits: p1Stats.perfectHits,
+              goodHits: p1Stats.goodHits,
+              misses: p1Stats.misses,
+              maxCombo: p1Stats.maxCombo,
+              accuracy: p1Accuracy,
+            }),
+          });
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            if (apiData.feedback) {
+              setAiFeedback(apiData.feedback);
+              return;
+            }
+          }
+        } catch {
+          // Ignore and check client-side fallback
+        }
+
+        // 2. Client-side fallback if VITE_GEMINI_API_KEY is configured in local dev
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+          setAiFeedback("Configura GEMINI_API_KEY nelle impostazioni del server per abilitare il coach vocale AI.");
+          return;
+        }
+
         const prompt = `Sei un vocal coach esperto e un giudice musicale AI. Il giocatore ha appena cantato "${songName}". 
 Ha ottenuto un punteggio di ${p1Stats.score}.
 Hit Perfetti: ${p1Stats.perfectHits}
@@ -56,8 +89,8 @@ Analizza la sua performance in modo conciso (2-3 frasi). Sii incoraggiante ma fa
         });
 
         const data = await response.json();
-        const text = data.candidates[0].content.parts[0].text;
-        setAiFeedback(text);
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        setAiFeedback(text || "Analisi completata con successo.");
       } catch (e) {
         console.error("AI fetch failed", e);
         setAiFeedback("Impossibile generare l'analisi AI al momento.");
