@@ -23,7 +23,5 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  },
-  "include": ["src"],
-  "exclude": ["scratch", "node_modules", "dist"]
+  }
 }

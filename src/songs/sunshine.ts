@@ -1,4 +1,12 @@
-import { SongNote, ChordEvent, Song } from '../types';
+import { SongNote } from '../types';
+
+export interface ChordEvent {
+  time: number;
+  duration: number;
+  root: number;     // MIDI note for bass (e.g. 36 = C2)
+  chordNotes: number[]; // MIDI notes for triad/chord (e.g. [48, 52, 55] = C3, E3, G3)
+  name: string;
+}
 
 export const SONG_TITLE = "You Are My Sunshine";
 export const SONG_DURATION = 35.0; // seconds
@@ -66,20 +74,3 @@ export const SUNSHINE_CHORDS: ChordEvent[] = [
   { time: 27.0, duration: 4.0, root: 43, chordNotes: [47, 50, 53, 55], name: "G7" },
   { time: 31.0, duration: 4.0, root: 36, chordNotes: [48, 52, 55, 60], name: "C" },
 ];
-
-export const SUNSHINE_SONG: Song = {
-  id: "sunshine",
-  title: SONG_TITLE,
-  artist: "Jimmie Davis / Charles Mitchell",
-  genre: "Folk Tradizionale",
-  difficulty: 2,
-  duration: SONG_DURATION,
-  countInDuration: COUNT_IN_DURATION,
-  bpm: 100,
-  key: "C Major",
-  vocalRange: "C4 - A4",
-  description: "Un classico intramontabile perfetto per scaldare la voce e testare l'intonazione sulle terze e quinte.",
-  firstNoteHint: 'Prima Nota: "You" (C4)',
-  notes: SUNSHINE_NOTES,
-  chords: SUNSHINE_CHORDS,
-};

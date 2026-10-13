@@ -6,13 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-.vercel
-separated/
-stitch_remix_tmp/
-*.zip
-scratch/
-extract_theme.py
-new_theme.css
-/alphabet_song.mp3
-__pycache__/
-*.pyc
